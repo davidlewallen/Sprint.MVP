@@ -1,0 +1,95 @@
+<html>
+<head>
+  <title>GitHub Fetcher</title>
+</head>
+<body>
+
+<h2>GitHub Fetcher</h2>
+<form class="repo-fetcher">
+  <h3>Enter a GitHub username to fetch:</h3>
+  <input class="username" type="text" name="username" />
+
+  <button class="submit" type="submit">Fetch User's Repos</button>
+</form>
+
+<div class="import-message"></div>
+
+<table class="top-repos" style="display:none" border="1|0">
+  <tr class="table-names">
+    <th>Number</th>
+    <th>Repository</th>
+    <th>Username</th>
+    <th>Stars</th>
+  </tr>
+</table>
+
+<script src="https://code.jquery.com/jquery-2.2.0.js"></script>
+<script>
+  $(document).ready(retreiveFromServer().then((data) => appendToPage(data)))
+  $('button').on('click', function(e) {
+    e.preventDefault();
+    var username = $('.repo-fetcher').serialize().substring(9);
+
+    requestGithub(username)
+    .then(function(dataGithub) {
+      return postToServer(dataGithub)
+    })
+    .then(function(updateObj) {
+      $('.import-message').text("New Repos: " + updateObj.newRepo + " | Updated Repos: " + updateObj.updatedRepo)
+      console.log('obj: ', updateObj)
+      return retreiveFromServer()
+    })
+    .then(function(dataServer) {
+      appendToPage(dataServer);
+    })
+  })
+
+  function requestGithub(username) {
+    return new Promise(function(resolve, reject) {
+      //TODO: Hide api inside of server. Request key from sever and then use to make request to github
+      $.get('https://api.github.com/users/' + username + '/repos?access_token=63ced2878d3e7af9e0f7726237e0d8ecd7a6f148', function(data) {
+        resolve(data);
+      })
+    })
+  }
+
+  function postToServer(data) {
+    return new Promise(function(resolve, reject) {
+      $.post('/repos/import', JSON.stringify(data), function(resp) {
+        resolve(resp);
+      });
+    })
+  }
+
+  function getCollaborators(username, repo) {
+    return new Promise(function(resolve, reject) {
+      $.get('https://api.github.com/repos/' + username + '/' + repo + '/collaborators?access_token=63ced2878d3e7af9e0f7726237e0d8ecd7a6f148', 
+        function(data) {
+          resolve(data)
+        }
+      )
+    })
+  }
+
+  function retreiveFromServer() {
+    console.log("a")
+    return new Promise(function(resolve, reject) {
+      console.log("b")
+      $.get('/repos', function(data) {
+        console.log("c")
+        resolve(data)
+      })
+    })
+  }
+
+  function appendToPage(data) {
+    $('.top-repos').show();
+    $('.top-repos').find('tr:gt(0)').remove();
+    data.forEach(function(repo, i) {
+      $('.top-repos').append(
+        "<tr><td>" + (i + 1) + "</td><td>" + "<a href='https://github.com/" + repo.username + "/" + repo.repo_name + "'>" + repo.repo_name + "</td><td>" + repo.username + "</td><td>" + repo.stargazers + "</td></tr>")
+    })
+  }
+</script>
+</body>
+</html>
